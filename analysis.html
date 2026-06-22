@@ -1,0 +1,1421 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>B站热门视频 · 三页深度分析</title>
+    <style>
+        /* ===== 全局变量 & 背景 ===== */
+        :root {
+            --bg: #f5f0f2;
+            --panel: rgba(255, 248, 250, 0.88);
+            --panel-2: rgba(255, 242, 245, 0.84);
+            --line: rgba(0, 0, 0, 0.08);
+            --text: #2d1b2a;
+            --muted: #7a5a6a;
+            --pink: #fb7299;
+            --blue: #00a1d6;
+            --yellow: #f5b342;
+            --green: #6bc5a0;
+            --shadow: 0 8px 30px rgba(251, 114, 153, 0.15);
+            --sidebar-width: 220px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            color: var(--text);
+            background: radial-gradient(circle at 10% 20%, rgba(251, 114, 153, 0.04) 0%, transparent 40%), radial-gradient(circle at 90% 80%, rgba(0, 161, 214, 0.04) 0%, transparent 40%), linear-gradient(145deg, #f5f0f2 0%, #faf5f7 100%);
+            background-attachment: fixed;
+            font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", system-ui, -apple-system, sans-serif;
+            min-height: 100vh;
+            display: flex;
+        }
+            /* 微网格纹理 */
+            body::before {
+                content: '';
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-image: linear-gradient(rgba(200, 180, 190, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(200, 180, 190, 0.03) 1px, transparent 1px);
+                background-size: 40px 40px;
+                pointer-events: none;
+                z-index: 0;
+            }
+
+        /* ===== 侧边栏 ===== */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: rgba(255, 248, 250, 0.92);
+            backdrop-filter: blur(12px);
+            border-right: 1px solid var(--line);
+            box-shadow: 2px 0 20px rgba(0,0,0,0.04);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            padding: 24px 0 20px;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar-brand {
+            padding: 0 20px 24px 20px;
+            border-bottom: 1px solid var(--line);
+            margin-bottom: 16px;
+        }
+
+            .sidebar-brand .dot {
+                display: inline-block;
+                width: 12px;
+                height: 12px;
+                border-radius: 50%;
+                background: var(--pink);
+                box-shadow: 0 0 16px var(--pink);
+                margin-right: 10px;
+            }
+
+            .sidebar-brand h1 {
+                font-size: 18px;
+                margin: 0;
+                font-weight: 700;
+                letter-spacing: 0.5px;
+                color: var(--text);
+            }
+
+                .sidebar-brand h1 span {
+                    color: var(--pink);
+                }
+
+            .sidebar-brand p {
+                margin: 4px 0 0 0;
+                font-size: 12px;
+                color: var(--muted);
+                letter-spacing: 0.3px;
+            }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 0 12px;
+        }
+
+            .sidebar-nav a {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 12px 16px;
+                border-radius: 12px;
+                color: var(--muted);
+                text-decoration: none;
+                font-size: 15px;
+                font-weight: 500;
+                transition: all 0.2s ease;
+                margin-bottom: 4px;
+                cursor: pointer;
+            }
+
+                .sidebar-nav a:hover {
+                    background: rgba(251, 114, 153, 0.08);
+                    color: var(--text);
+                }
+
+                .sidebar-nav a.active {
+                    background: var(--pink);
+                    color: #fff;
+                    box-shadow: 0 4px 14px rgba(251, 114, 153, 0.35);
+                }
+
+                .sidebar-nav a .icon {
+                    font-size: 18px;
+                    width: 28px;
+                    text-align: center;
+                }
+
+                .sidebar-nav a .label {
+                    flex: 1;
+                }
+
+        .sidebar-footer {
+            padding: 16px 20px 0;
+            border-top: 1px solid var(--line);
+            font-size: 11px;
+            color: var(--muted);
+            text-align: center;
+        }
+
+        /* ===== 主内容区 ===== */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            flex: 1;
+            padding: 24px 32px 60px;
+            position: relative;
+            z-index: 1;
+            min-height: 100vh;
+        }
+
+        /* ===== 其余原样式 ===== */
+        /* 头部（部分信息移入侧边栏，保留右侧meta） */
+        .top-meta {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 16px;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.8;
+        }
+
+            .top-meta b {
+                color: var(--pink);
+            }
+
+        /* 页面容器 */
+        .page {
+            display: none;
+        }
+
+            .page.active {
+                display: block;
+            }
+
+        /* 页面引导 */
+        .page-guide {
+            margin: 0 0 20px 0;
+            padding: 14px 20px;
+            background: rgba(251, 114, 153, 0.06);
+            border-radius: 16px;
+            border-left: 5px solid var(--pink);
+            font-size: 14px;
+            color: var(--muted);
+        }
+
+            .page-guide strong {
+                color: var(--text);
+            }
+
+        /* 网格 & 卡片 */
+        .grid {
+            display: grid;
+            gap: 20px;
+            margin-top: 16px;
+        }
+
+        .g2 {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .g3 {
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        @media (max-width: 1080px) {
+            .g2, .g3 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--panel);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--line);
+            border-radius: 20px;
+            padding: 18px 18px 12px;
+            box-shadow: var(--shadow);
+            transition: box-shadow 0.25s ease;
+        }
+
+            .card:hover {
+                box-shadow: 0 12px 40px rgba(251, 114, 153, 0.18);
+            }
+
+            .card h3 {
+                margin: 0 0 2px;
+                font-size: 16px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-weight: 600;
+            }
+
+                .card h3 .idx {
+                    color: var(--pink);
+                    font-weight: 800;
+                }
+
+            .card .sub {
+                margin: 0 0 10px;
+                color: var(--muted);
+                font-size: 13px;
+                line-height: 1.6;
+            }
+
+            .card .chart {
+                width: 100%;
+                height: 340px;
+            }
+
+                .card .chart.tall {
+                    height: 440px;
+                }
+
+                .card .chart.x-tall {
+                    height: 480px;
+                }
+
+        .span2 {
+            grid-column: span 2;
+        }
+
+        @media (max-width: 1080px) {
+            .span2 {
+                grid-column: span 1;
+            }
+        }
+
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 4px 0 10px;
+            flex-wrap: wrap;
+        }
+
+            .toolbar label {
+                color: var(--muted);
+                font-size: 13px;
+                font-weight: 500;
+            }
+
+        select, .seg button {
+            background: rgba(255,255,255,0.6);
+            color: var(--text);
+            border: 1px solid var(--line);
+            border-radius: 30px;
+            padding: 6px 16px;
+            font-size: 13px;
+            font-family: inherit;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+            select:hover, .seg button:hover {
+                border-color: var(--pink);
+            }
+
+            .seg button.active {
+                background: var(--pink);
+                color: #fff;
+                border-color: var(--pink);
+                font-weight: 600;
+            }
+
+        .note {
+            background: rgba(251, 114, 153, 0.06);
+            border: 1px dashed rgba(251, 114, 153, 0.25);
+            color: #8a4a5a;
+            font-size: 12px;
+            line-height: 1.6;
+            padding: 10px 14px;
+            border-radius: 12px;
+            margin-top: 10px;
+        }
+
+        .empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 340px;
+            text-align: center;
+            color: var(--muted);
+            gap: 10px;
+        }
+
+            .empty .big {
+                font-size: 48px;
+            }
+
+        .reserved {
+            border: 1px dashed var(--line);
+            border-radius: 20px;
+        }
+
+        /* KPI 卡片 */
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin: 20px 0 10px;
+        }
+
+        .kpi-card {
+            background: var(--panel);
+            backdrop-filter: blur(4px);
+            border-radius: 16px;
+            padding: 16px 20px;
+            text-align: center;
+            border: 1px solid var(--line);
+            box-shadow: var(--shadow);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+            .kpi-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 12px 36px rgba(251, 114, 153, 0.18);
+            }
+
+            .kpi-card .num {
+                font-size: 28px;
+                font-weight: 700;
+                color: var(--pink);
+                display: block;
+                line-height: 1.3;
+            }
+
+            .kpi-card .label {
+                font-size: 13px;
+                color: var(--muted);
+                margin-top: 4px;
+            }
+
+        @media (max-width: 720px) {
+            .kpi-row {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* 响应式：小屏幕侧边栏折叠 */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                width: 260px;
+            }
+
+                .sidebar.open {
+                    transform: translateX(0);
+                }
+
+            .main-content {
+                margin-left: 0;
+                padding: 16px;
+            }
+            /* 汉堡按钮 */
+            .menu-toggle {
+                display: block !important;
+                position: fixed;
+                top: 16px;
+                left: 16px;
+                z-index: 200;
+                background: var(--panel);
+                border: 1px solid var(--line);
+                border-radius: 8px;
+                padding: 8px 12px;
+                font-size: 20px;
+                cursor: pointer;
+                backdrop-filter: blur(4px);
+                box-shadow: var(--shadow);
+            }
+
+                .menu-toggle:hover {
+                    background: var(--pink);
+                    color: #fff;
+                }
+
+            .top-meta {
+                margin-top: 40px;
+                justify-content: flex-start;
+            }
+        }
+
+        .menu-toggle {
+            display: none;
+        }
+
+        /* 侧边栏遮罩 */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.2);
+            z-index: 99;
+        }
+
+            .sidebar-overlay.active {
+                display: block;
+            }
+    </style>
+</head>
+<body>
+
+    <!-- 移动端菜单按钮 -->
+    <button class="menu-toggle" id="menuToggle">☰</button>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- ===== 侧边栏 ===== -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <div>
+                <span class="dot"></span>
+                <h1>B站热门 <span>·</span> 分析</h1>
+                <p>三页深度数据看板</p>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="#" data-page="p1" class="active">
+                <span class="icon">📌</span>
+                <span class="label">全局大盘</span>
+            </a>
+            <a href="#" data-page="p2">
+                <span class="icon">✏️</span>
+                <span class="label">内容工艺</span>
+            </a>
+            <a href="#" data-page="p3">
+                <span class="icon">🚀</span>
+                <span class="label">爆款深度</span>
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <span id="sidebarMeta"></span>
+        </div>
+    </aside>
+
+    <!-- ===== 主内容区 ===== -->
+    <div class="main-content">
+
+        <!-- 顶部 meta 信息（原 header 右侧） -->
+        <div class="top-meta" id="metaBox"></div>
+
+        <!-- ==================== 页面一 ==================== -->
+        <section class="page active" id="p1">
+            <div class="page-guide">
+                <strong>📊 第一页 · 赛道选择</strong>
+            </div>
+
+            <!-- KPI -->
+            <div class="kpi-row" id="kpiRow">
+                <div class="kpi-card"><span class="num" id="kpiTotal">-</span><span class="label">📹 总视频数</span></div>
+                <div class="kpi-card"><span class="num" id="kpiPlay">-</span><span class="label">▶️ 总播放量</span></div>
+                <div class="kpi-card"><span class="num" id="kpiInter">-</span><span class="label">💬 平均互动率</span></div>
+                <div class="kpi-card"><span class="num" id="kpiTop">-</span><span class="label">🏆 投稿最多分区</span></div>
+            </div>
+
+            <div class="grid g2">
+                <div class="card">
+                    <h3><span class="idx">①</span> 各分区投稿占比（Top5 + 其他）</h3>
+                    <p class="sub">按投稿数量取前五大内容分区，其余合并为「其他」。</p>
+                    <div id="c_pie" class="chart"></div>
+                </div>
+                <div class="card">
+                    <h3><span class="idx">②</span> Top5 分区互动风格雷达</h3>
+                    <p class="sub">展现热门分区在点赞、投币、收藏、互动率、弹幕密度上的差异。</p>
+                    <div id="c_radar1" class="chart" style="height:280px;"></div>
+                </div>
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <h3><span class="idx">③</span> 分区价值象限图：投稿规模 vs 互动效率</h3>
+                    <p class="sub">X轴 = 投稿数量（规模），Y轴 = 平均互动率（质量）。气泡大小代表平均播放量。</p>
+                    <div id="c_quadrant" class="chart x-tall"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== 页面二 ==================== -->
+        <section class="page" id="p2">
+            <div class="page-guide">
+                <strong>✏️ 第二页 · 内容工艺</strong>
+            </div>
+
+            <div class="grid g2">
+                <div class="card span2">
+                    <h3><span class="idx">①</span> 周几 × 时长分段 · 数量与互动表现（融合气泡图）</h3>
+                    <p class="sub">气泡大小 = 视频数量，颜色深浅 = 中位互动率。融合了「周发布」「时长分段」「分区时长对比」三个维度。</p>
+                    <div id="c_merged" class="chart tall"></div>
+                </div>
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <h3><span class="idx">②</span> 分区 × 时长 综合表现热力图</h3>
+                    <p class="sub">颜色越深表示该「分区 + 时长档」组合的综合表现越好（播放 + 互动复合得分）。</p>
+                    <div id="c_heat" class="chart"></div>
+                </div>
+            </div>
+
+            <div class="grid g2">
+                <div class="card">
+                    <h3><span class="idx">③</span> 标题关键词词云（钻石形 · 高密度）</h3>
+                    <p class="sub">基于标题字段的高频词，过滤无关词后字体对比更鲜明。</p>
+                    <div id="c_cloud" class="chart"></div>
+                </div>
+                <div class="card">
+                    <h3><span class="idx">④</span> 标题风格效果对比（差异条形图）</h3>
+                    <p class="sub">相比“无该特征”的视频，带特征的视频互动率提升百分比。越向右越有效。</p>
+                    <div id="c_style_impact" class="chart"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== 页面三 ==================== -->
+        <section class="page" id="p3">
+            <div class="page-guide">
+                <strong>🚀 第三页 · 爆款分层</strong> 
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <h3><span class="idx">①</span> 爆款散点：播放量 × 优质度（互动总数）</h3>
+                    <p class="sub">按互动率中位数划分「纯流量」与「流量+优质」。</p>
+                    <div id="c_scatter" class="chart tall"></div>
+                </div>
+            </div>
+
+            <div class="grid g2">
+                <div class="card">
+                    <h3><span class="idx">②</span> 指标关联方格表（相关系数）</h3>
+                    <p class="sub">格子越深表示两项指标的皮尔逊相关性越强。</p>
+                    <div id="c_corr" class="chart tall"></div>
+                </div>
+                <div class="card reserved">
+                    <h3><span class="idx">③</span> 两类爆款核心特征对比</h3>
+                    <p class="sub">纯流量型 vs 流量+优质型 的核心指标差异。</p>
+                    <div id="c_reserved" class="chart tall"></div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- ==================== 脚本 ==================== -->
+    <script src="vendor/echarts.min.js"></script>
+    <script src="vendor/echarts-wordcloud.min.js"></script>
+    <script src="poster_data.js"></script>
+
+    <script>
+        (function () {
+        const DATA = window.POSTER_DATA || {};
+        const fmt = new Intl.NumberFormat("zh-CN");
+        const palette = DATA.palette || {};
+        const warmPalette = ['#fb7299', '#00a1d6', '#f5b342', '#6bc5a0', '#b47b9e', '#e8a87c', '#9fc7d6'];
+        const AXIS = "#7a5a6a";
+        const baseGrid = { left: 56, right: 24, top: 36, bottom: 44 };
+
+        const meta = DATA.meta || {};
+        // 顶部 meta 信息
+        document.getElementById("metaBox").innerHTML =
+        `样本：<b>${fmt.format(meta.rows || 0)}</b> 条 · 逐条样本：<b>${fmt.format((DATA.scatter || []).length)}</b> 条 &nbsp;|&nbsp; 日期：${meta.date_min || "-"} ~ ${meta.date_max || "-"}`;
+        // 侧边栏底部 meta
+        document.getElementById("sidebarMeta").innerText = `共 ${meta.rows || 0} 条数据`;
+
+        // ---------- helpers ----------
+        const charts = {};
+        function mk(id, opt) {
+        const dom = document.getElementById(id);
+        if (!dom) return;
+        const c = echarts.init(dom, null, { renderer: "canvas" });
+        c.setOption(opt);
+        charts[id] = c;
+        return c;
+        }
+        const median = arr => {
+        const a = arr.filter(Number.isFinite).sort((x, y) => x - y);
+        if (!a.length) return 0;
+        const m = Math.floor(a.length / 2);
+        return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+        };
+        const mean = arr => {
+        const a = arr.filter(Number.isFinite);
+        return a.length ? a.reduce((s, v) => s + v, 0) / a.length : 0;
+        };
+        const tooltipBase = {
+        backgroundColor: "rgba(255,248,250,0.94)",
+        borderColor: "rgba(251,114,153,0.3)",
+        textStyle: { color: "#2d1b2a" }
+        };
+
+        // ============================================================
+        // 全局 KPI
+        // ============================================================
+        const totalVids = DATA.scatter ? DATA.scatter.length : 0;
+        const totalPlay = DATA.scatter ? DATA.scatter.reduce((s, v) => s + v["播放量"], 0) : 0;
+        const avgInter = DATA.scatter ? mean(DATA.scatter.map(v => v["互动率"])) : 0;
+        const groupsAll = (DATA.groupStats || []).slice();
+        const topGroup = groupsAll.filter(g => g["内容大类"] !== "其他").sort((a, b) => b.count - a.count)[0];
+        document.getElementById("kpiTotal").innerText = fmt.format(totalVids);
+        document.getElementById("kpiPlay").innerText = (totalPlay / 1e8).toFixed(1) + '亿';
+        document.getElementById("kpiInter").innerText = avgInter.toFixed(2) + '%';
+        document.getElementById("kpiTop").innerText = topGroup ? topGroup["内容大类"] : '-';
+
+        // ============================================================
+        // PAGE 1
+        // ============================================================
+        const groups = (DATA.groupStats || []).slice();
+        const real = groups.filter(g => g["内容大类"] !== "其他").sort((a, b) => b.count - a.count);
+        const top5 = real.slice(0, 5);
+        const top5Names = top5.map(g => g["内容大类"]);
+        const restCount = groups.filter(g => !top5Names.includes(g["内容大类"]))
+        .reduce((s, g) => s + g.count, 0);
+
+        // ① pie
+        const pieData = top5.map(g => ({
+        name: g["内容大类"],
+        value: g.count,
+        itemStyle: { color: palette[g["内容大类"]] || warmPalette[0] }
+        })).concat([{
+        name: "其他",
+        value: restCount,
+        itemStyle: { color: "#d0c0c8" }
+        }]);
+
+        mk("c_pie", {
+        tooltip: Object.assign({
+        trigger: "item",
+        formatter: p => `${p.name}<br>投稿数：${fmt.format(p.value)}（${p.percent}%）`
+        }, tooltipBase),
+        legend: { bottom: 0, textStyle: { color: AXIS }, type: "scroll" },
+        series: [{
+        type: "pie",
+        radius: ["38%", "68%"],
+        center: ["50%", "46%"],
+        itemStyle: { borderColor: "#fff", borderWidth: 2 },
+        label: { color: "#2d1b2a", formatter: "{b}\n{d}%" },
+        data: pieData
+        }]
+        });
+
+        // ② 雷达图（缩小版）
+        const radar1Dims = [
+        { key: "like_share", name: "点赞占比" },
+        { key: "coin_share", name: "投币占比" },
+        { key: "favorite_share", name: "收藏占比" },
+        { key: "interaction_rate_median", name: "互动率" },
+        { key: "danmu_density_median", name: "弹幕密度" }
+        ];
+        const radar1Max = radar1Dims.map(d => Math.max(...top5.map(g => g[d.key])) * 1.12);
+        mk("c_radar1", {
+        tooltip: tooltipBase,
+        legend: { bottom: 0, textStyle: { color: AXIS }, type: "scroll" },
+        radar: {
+        indicator: radar1Dims.map((d, i) => ({ name: d.name, max: radar1Max[i] })),
+        splitLine: { lineStyle: { color: "rgba(0,0,0,0.08)" } },
+        splitArea: { areaStyle: { color: ["rgba(0,0,0,0.02)", "rgba(0,0,0,0.04)"] } },
+        axisLine: { lineStyle: { color: "rgba(0,0,0,0.15)" } },
+        name: { color: AXIS, fontSize: 10 }
+        },
+        series: [{
+        type: "radar",
+        areaStyle: { opacity: 0.08 },
+        data: top5.map(g => ({
+        name: g["内容大类"],
+        value: radar1Dims.map(d => +(g[d.key]).toFixed(3)),
+        lineStyle: { color: palette[g["内容大类"]] || warmPalette[0], width: 2 },
+        itemStyle: { color: palette[g["内容大类"]] || warmPalette[0] }
+        }))
+        }]
+        });
+
+        // ③ 象限图
+        (function() {
+        const quadData = real.map(g => ({
+        value: [g.count, g.interaction_rate_median, g.play_mean],
+        name: g["内容大类"],
+        itemStyle: { color: palette[g["内容大类"]] || warmPalette[0] }
+        }));
+        const medCount = median(real.map(g => g.count));
+        const medInter = median(real.map(g => g.interaction_rate_median));
+
+        mk("c_quadrant", {
+        tooltip: Object.assign({
+        formatter: p => {
+        const d = p.data;
+        return `<strong>${d.name}</strong><br>投稿数：${fmt.format(d.value[0])}<br>互动率：${d.value[1].toFixed(2)}%<br>平均播放：${fmt.format(Math.round(d.value[2]))}`;
+        }
+        }, tooltipBase),
+        grid: { left: 80, right: 30, top: 30, bottom: 60 },
+        xAxis: {
+        type: 'log',
+        name: '投稿规模（数量）',
+        nameLocation: 'middle',
+        nameGap: 35,
+        nameTextStyle: { color: AXIS },
+        axisLabel: { color: AXIS },
+        splitLine: { lineStyle: { color: 'rgba(0,0,0,0.06)' } }
+        },
+        yAxis: {
+        type: 'value',
+        name: '互动效率（互动率 %）',
+        nameTextStyle: { color: AXIS },
+        axisLabel: { color: AXIS, formatter: v => v + '%' },
+        splitLine: { lineStyle: { color: 'rgba(0,0,0,0.06)' } }
+        },
+        series: [{
+        type: 'scatter',
+        symbolSize: function(val) {
+        return 10 + Math.sqrt(val[2]) / 200;
+        },
+        data: quadData,
+        markLine: {
+        silent: true,
+        symbol: 'none',
+        lineStyle: { color: '#fb7299', type: 'dashed', width: 1 },
+        data: [
+        { xAxis: medCount, label: { formatter: '中位规模', color: AXIS, fontSize: 11 } },
+        { yAxis: medInter, label: { formatter: '中位互动率', color: AXIS, fontSize: 11 } }
+        ]
+        },
+        label: {
+        show: true,
+        formatter: '{b}',
+        position: 'right',
+        color: AXIS,
+        fontSize: 11
+        }
+        }]
+        });
+        })();
+
+        // ============================================================
+        // PAGE 2
+        // ============================================================
+        const vids = (DATA.scatter || []);
+        const DUR_LABELS = ["<1分钟", "1-3分钟", "3-10分钟", "10-30分钟", ">30分钟"];
+        function durBucket(sec) {
+        if (sec < 60) return DUR_LABELS[0];
+        if (sec < 180) return DUR_LABELS[1];
+        if (sec < 600) return DUR_LABELS[2];
+        if (sec < 1800) return DUR_LABELS[3];
+        return DUR_LABELS[4];
+        }
+
+        // ① 融合气泡图
+        (function() {
+        const weekDays = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+        const durLabels = DUR_LABELS;
+        const grid = {};
+        weekDays.forEach((w, wi) => {
+        durLabels.forEach((d, di) => {
+        grid[wi + '_' + di] = { count: 0, interactions: [], plays: [] };
+        });
+        });
+        vids.forEach(v => {
+        const d = new Date(v["发布日期"]);
+        if (isNaN(d)) return;
+        const wi = (d.getDay() + 6) % 7;
+        const durStr = durBucket(v["时长_秒"]);
+        const di = durLabels.indexOf(durStr);
+        if (di === -1) return;
+        const key = wi + '_' + di;
+        if (grid[key]) {
+        grid[key].count += 1;
+        grid[key].interactions.push(v["互动率"]);
+        grid[key].plays.push(v["播放量"]);
+        }
+        });
+
+        const scatterData = [];
+        let maxCount = 1, maxInter = 1;
+        weekDays.forEach((w, wi) => {
+        durLabels.forEach((d, di) => {
+        const key = wi + '_' + di;
+        const item = grid[key];
+        if (item && item.count > 0) {
+        const medInter = median(item.interactions);
+        const medPlay = median(item.plays);
+        if (medInter > maxInter) maxInter = medInter;
+        if (item.count > maxCount) maxCount = item.count;
+        scatterData.push({ value: [wi, di, item.count, medInter, medPlay] });
+        }
+        });
+        });
+
+        if (scatterData.length === 0) {
+        document.getElementById("c_merged").innerHTML = '<div class="empty"><span class="big">📊</span><span>暂无数据</span></div>';
+        return;
+        }
+
+        mk("c_merged", {
+        tooltip: {
+        trigger: 'item',
+        formatter: function(params) {
+        const d = params.data;
+        return `<strong>${weekDays[d.value[0]]} · ${durLabels[d.value[1]]}</strong><br>
+        视频数：${d.value[2]} 个<br>
+        中位互动率：${d.value[3].toFixed(2)}%<br>
+        中位播放量：${d.value[4].toLocaleString()}`;
+        }
+        },
+        grid: { left: 100, right: 40, top: 20, bottom: 60 },
+        xAxis: {
+        type: 'category',
+        data: weekDays,
+        axisLabel: { color: AXIS, fontWeight: 'bold' },
+        splitLine: { show: true, lineStyle: { color: 'rgba(0,0,0,0.06)' } }
+        },
+        yAxis: {
+        type: 'category',
+        data: durLabels,
+        axisLabel: { color: AXIS },
+        splitLine: { show: true, lineStyle: { color: 'rgba(0,0,0,0.06)' } }
+        },
+        visualMap: {
+        min: 0,
+        max: Math.ceil(maxInter * 1.1),
+        calculable: true,
+        orient: 'horizontal',
+        left: 'center',
+        bottom: 5,
+        textStyle: { color: AXIS },
+        inRange: { color: ['#f7e0e6', '#fb7299', '#c94f7a', '#8a2e52'] }
+        },
+        series: [{
+        type: 'scatter',
+        symbolSize: function(val) {
+        return 10 + (val[2] / maxCount) * 60;
+        },
+        data: scatterData,
+        encode: { x: 0, y: 1, value: [2, 3] },
+        itemStyle: {
+        shadowBlur: 8,
+        shadowColor: 'rgba(251,114,153,0.25)',
+        opacity: 0.9
+        },
+        label: {
+        show: true,
+        formatter: function(params) {
+        return params.data.value[2] > 3 ? params.data.value[2] : '';
+        },
+        position: 'inside',
+        color: '#fff',
+        fontSize: 11,
+        fontWeight: 'bold',
+        textShadowBlur: 4,
+        textShadowColor: 'rgba(0,0,0,0.3)'
+        },
+        emphasis: {
+        itemStyle: {
+        shadowBlur: 16,
+        shadowColor: 'rgba(251,114,153,0.5)'
+        }
+        }
+        }]
+        });
+        })();
+
+        // ② 热力图
+        const heatGroups = real.slice(0, 8).map(g => g["内容大类"]);
+        const cellPlays = {}, cellInter = {};
+        heatGroups.forEach(g => DUR_LABELS.forEach(l => {
+        cellPlays[g + "|" + l] = [];
+        cellInter[g + "|" + l] = [];
+        }));
+        vids.forEach(v => {
+        const g = v["内容大类"], l = durBucket(v["时长_秒"]);
+        const key = g + "|" + l;
+        if (cellPlays[key]) {
+        cellPlays[key].push(v["播放量"]);
+        cellInter[key].push(v["互动率"]);
+        }
+        });
+        const rawCells = [];
+        heatGroups.forEach((g, yi) => DUR_LABELS.forEach((l, xi) => {
+        const key = g + "|" + l;
+        const n = cellPlays[key].length;
+        rawCells.push({ xi, yi, n, play: n ? median(cellPlays[key]) : null, inter: n ? median(cellInter[key]) : null });
+        }));
+        const maxPlay = Math.max(...rawCells.map(c => c.play || 0)) || 1;
+        const maxInter = Math.max(...rawCells.map(c => c.inter || 0)) || 1;
+        const heatData = rawCells.map(c => {
+        if (!c.n) return [c.xi, c.yi, null];
+        const score = (0.6 * (c.play / maxPlay) + 0.4 * (c.inter / maxInter)) * 100;
+        return [c.xi, c.yi, +score.toFixed(1), c.n, Math.round(c.play), c.inter];
+        });
+
+        mk("c_heat", {
+        tooltip: Object.assign({
+        formatter: p => {
+        if (p.value[2] == null) return `${heatGroups[p.value[1]]} / ${DUR_LABELS[p.value[0]]}<br>无样本`;
+        return `${heatGroups[p.value[1]]} / ${DUR_LABELS[p.value[0]]}<br>综合得分：${p.value[2]}<br>样本：${p.value[3]} · 中位播放：${fmt.format(p.value[4])} · 中位互动率：${p.value[5]}%`;
+        }
+        }, tooltipBase),
+        grid: { left: 78, right: 18, top: 16, bottom: 60 },
+        xAxis: {
+        type: "category",
+        data: DUR_LABELS,
+        axisLabel: { color: AXIS, rotate: 20 },
+        splitArea: { show: true }
+        },
+        yAxis: {
+        type: "category",
+        data: heatGroups,
+        axisLabel: { color: AXIS },
+        splitArea: { show: true }
+        },
+        visualMap: {
+        min: 0,
+        max: 100,
+        calculable: true,
+        orient: "horizontal",
+        left: "center",
+        bottom: 8,
+        textStyle: { color: AXIS },
+        inRange: { color: ['#f7e0e6', '#fb7299', '#c94f7a', '#8a2e52'] }
+        },
+        series: [{
+        type: "heatmap",
+        data: heatData,
+        label: {
+        show: true,
+        color: "#2d1b2a",
+        formatter: p => p.value[2] == null ? "" : p.value[2]
+        },
+        emphasis: {
+        itemStyle: {
+        borderColor: '#fff',
+        borderWidth: 2,
+        shadowBlur: 8,
+        shadowColor: 'rgba(251,114,153,0.3)'
+        }
+        }
+        }]
+        });
+
+        // ③ 词云
+        (function () {
+        const stop = new Set("的了是在我你他她它们和与也都就这那有不一个之等及把被让给对从向上下你我他到要会能很最更已也还又再吗呢啊吧呀哦哈与其以及一个这个那个什么怎么为什么如何视频完整版第一第二高清官方频道".split(""));
+        const stopBi = new Set(["视频", "完整", "高清", "官方", "这个", "那个", "什么", "我们", "你们", "他们", "一个", "可以", "没有", "就是", "这样", "这种", "因为", "所以", "但是", "如果"]);
+        const freq = {};
+        vids.forEach(v => {
+        const t = String(v.short_title || "").replace(/[【】\[\]（）()《》<>「」、，。！？!?,.:：;；…\-—_~\s\d]/g, " ");
+        (t.match(/[A-Za-z]{2,}/g) || []).forEach(w => {
+        freq[w.toLowerCase()] = (freq[w.toLowerCase()] || 0) + 1;
+        });
+        (t.match(/[\u4e00-\u9fa5]+/g) || []).forEach(seg => {
+        for (let i = 0; i < seg.length - 1; i++) {
+        const bi = seg.slice(i, i + 2);
+        if (bi.split("").some(c => stop.has(c))) continue;
+        if (stopBi.has(bi)) continue;
+        freq[bi] = (freq[bi] || 0) + 1;
+        }
+        });
+        });
+
+        const words = Object.entries(freq)
+        .filter(([w, c]) => c >= 3 && w !== '彭昱' && w !== '犬少' && w !== '风犬' && w !== '天空')
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 160)
+        .map(([name, value]) => ({ name, value }));
+
+        const colors = ['#fb7299', '#00a1d6', '#f5b342', '#6bc5a0', '#b47b9e', '#e8a87c'];
+        try {
+        mk("c_cloud", {
+        tooltip: Object.assign({ formatter: p => `${p.name}：${p.value} 次` }, tooltipBase),
+        series: [{
+        type: "wordCloud",
+        shape: "diamond",
+        sizeRange: [10, 64],
+        rotationRange: [-45, 45],
+        gridSize: 4,
+        width: "96%",
+        height: "92%",
+        drawOutOfBound: false,
+        textStyle: {
+        fontFamily: 'PingFang SC, Microsoft YaHei, sans-serif',
+        fontWeight: 'bold',
+        color: () => colors[Math.floor(Math.random() * colors.length)]
+        },
+        data: words
+        }]
+        });
+        } catch (e) {
+        const top = words.slice(0, 20).reverse();
+        mk("c_cloud", {
+        grid: { left: 70, right: 24, top: 10, bottom: 20 },
+        tooltip: tooltipBase,
+        xAxis: { type: "value", axisLabel: { color: AXIS } },
+        yAxis: { type: "category", data: top.map(w => w.name), axisLabel: { color: AXIS } },
+        series: [{ type: "bar", data: top.map(w => w.value), itemStyle: { color: "#fb7299" } }]
+        });
+        }
+        })();
+
+        // ④ 标题风格差异条形图
+        (function() {
+        function getFeatures(title) {
+        const t = String(title || "");
+        return {
+        isQuestion: /[？?]|怎么|为什么|为何|如何|多少|是不是|有没有|哪些|哪个|吗[？?]?$/.test(t),
+        isSuspense: /(没想到|竟然|居然|震惊|万万|想不到|结果|逆天|离谱|绝了|神级|惊呆|意外|反转|真相)/.test(t),
+        isGuide: /(干货|教程|盘点|攻略|合集|推荐|必看|收藏|整理|总结|指南|全集|科普|讲解|解析|入门|系列)/.test(t),
+        hasNumber: /\d/.test(t) || /[一二三四五六七八九十百千万]/.test(t),
+        hasEmotion: /(哭了|笑了|绝了|神了|惊了|离谱|逆天|炸了|封神)/.test(t)
+        };
+        }
+
+        const featureKeys = [
+        { key: 'isQuestion', label: '提问句' },
+        { key: 'isSuspense', label: '悬念词' },
+        { key: 'isGuide', label: '引导词' },
+        { key: 'hasNumber', label: '数字词' },
+        { key: 'hasEmotion', label: '情绪词' }
+        ];
+
+        const allInter = vids.map(v => v["互动率"]).filter(Number.isFinite);
+        const baseInter = mean(allInter);
+
+        const results = featureKeys.map(fk => {
+        const hasFeature = [];
+        const noFeature = [];
+        vids.forEach(v => {
+        const feats = getFeatures(v.short_title);
+        if (feats[fk.key]) {
+        hasFeature.push(v["互动率"]);
+        } else {
+        noFeature.push(v["互动率"]);
+        }
+        });
+        const meanHas = mean(hasFeature);
+        const meanNo = mean(noFeature);
+        const lift = meanNo > 0 ? ((meanHas - meanNo) / meanNo * 100) : 0;
+        return {
+        name: fk.label,
+        lift: lift,
+        meanHas: meanHas,
+        meanNo: meanNo
+        };
+        });
+
+        results.sort((a, b) => b.lift - a.lift);
+
+        mk("c_style_impact", {
+        tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' },
+        formatter: function(params) {
+        const p = params[0];
+        const data = results[p.dataIndex];
+        return `<strong>${data.name}</strong><br>
+        含该特征平均互动率：${data.meanHas.toFixed(2)}%<br>
+        不含该特征平均互动率：${data.meanNo.toFixed(2)}%<br>
+        <span style="color:#fb7299;font-weight:bold;">提升幅度：${data.lift > 0 ? '+' : ''}${data.lift.toFixed(1)}%</span>`;
+        }
+        },
+        grid: { left: 100, right: 60, top: 20, bottom: 30 },
+        xAxis: {
+        type: 'value',
+        name: '互动率提升 (%)',
+        axisLabel: { color: AXIS, formatter: v => v + '%' },
+        splitLine: { lineStyle: { color: 'rgba(0,0,0,0.06)' } }
+        },
+        yAxis: {
+        type: 'category',
+        data: results.map(r => r.name),
+        axisLabel: { color: AXIS, fontSize: 13, fontWeight: 'bold' }
+        },
+        series: [{
+        type: 'bar',
+        data: results.map(r => ({
+        value: r.lift,
+        itemStyle: {
+        color: r.lift > 0 ? '#fb7299' : '#b0a0a8',
+        borderRadius: [0, 6, 6, 0]
+        }
+        })),
+        label: {
+        show: true,
+        position: 'right',
+        formatter: p => p.value > 0 ? '+' + p.value.toFixed(1) + '%' : p.value.toFixed(1) + '%',
+        color: AXIS,
+        fontWeight: 'bold'
+        },
+        barWidth: '50%'
+        }]
+        });
+        })();
+
+
+        // ============================================================
+        // PAGE 3
+        // ============================================================
+        const medRate = median(vids.map(v => v["互动率"]));
+        window.pure = [];
+        window.premium = [];
+        vids.forEach(v => {
+        const point = [
+        v["播放量"],
+        Math.max(1, v["互动总数"]),
+        v["互动率"],
+        v.short_title,
+        v["内容分区"],
+        v["弹幕密度"],
+        v["时长_秒"]
+        ];
+        (v["互动率"] >= medRate ? window.premium : window.pure).push(point);
+        });
+
+        // ① 散点
+        mk("c_scatter", {
+        tooltip: Object.assign({
+        formatter: p => {
+        const d = p.data;
+        return `${d[3]}<br>分区：${d[4]}<br>播放量：${fmt.format(d[0])}<br>互动总数：${fmt.format(d[1])}<br>互动率：${d[2]}%`;
+        }
+        }, tooltipBase),
+        legend: { top: 0, textStyle: { color: AXIS } },
+        grid: { left: 70, right: 28, top: 40, bottom: 56 },
+        xAxis: {
+        type: "log",
+        name: "播放量",
+        nameLocation: "middle",
+        nameGap: 30,
+        nameTextStyle: { color: AXIS },
+        axisLabel: { color: AXIS, formatter: v => v >= 1e8 ? (v / 1e8) + "亿" : v >= 1e4 ? (v / 1e4) + "w" : v },
+        splitLine: { lineStyle: { color: "rgba(0,0,0,0.06)" } }
+        },
+        yAxis: {
+        type: "log",
+        name: "互动总数",
+        nameTextStyle: { color: AXIS },
+        axisLabel: { color: AXIS, formatter: v => v >= 1e4 ? (v / 1e4) + "w" : v },
+        splitLine: { lineStyle: { color: "rgba(0,0,0,0.06)" } }
+        },
+        series: [
+        {
+        name: "纯流量（互动率偏低）",
+        type: "scatter",
+        symbolSize: 7,
+        data: pure,
+        itemStyle: { color: "rgba(0,161,214,0.5)" }
+        },
+        {
+        name: "流量+优质（互动率偏高）",
+        type: "scatter",
+        symbolSize: 7,
+        data: premium,
+        itemStyle: { color: "rgba(251,114,153,0.7)" }
+        }
+        ]
+        });
+
+        // ② 相关系数矩阵
+        const corrKeys = [
+        { key: "播放量", name: "播放量" },
+        { key: "互动总数", name: "互动总数" },
+        { key: "互动率", name: "互动率" },
+        { key: "弹幕密度", name: "弹幕密度" },
+        { key: "时长_秒", name: "时长" }
+        ];
+        function pearson(a, b) {
+        const n = a.length;
+        if (!n) return 0;
+        const ma = mean(a), mb = mean(b);
+        let num = 0, da = 0, db = 0;
+        for (let i = 0; i < n; i++) {
+        const x = a[i] - ma, y = b[i] - mb;
+        num += x * y;
+        da += x * x;
+        db += y * y;
+        }
+        const den = Math.sqrt(da * db);
+        return den ? num / den : 0;
+        }
+        const series = corrKeys.map(k => vids.map(v => Number(v[k.key])));
+        const corrData = [];
+        for (let i = 0; i < corrKeys.length; i++)
+        for (let j = 0; j < corrKeys.length; j++)
+        corrData.push([j, i, +pearson(series[i], series[j]).toFixed(2)]);
+
+        mk("c_corr", {
+        tooltip: Object.assign({
+        formatter: p => `${corrKeys[p.value[1]].name} × ${corrKeys[p.value[0]].name}<br>相关系数：${p.value[2]}`
+        }, tooltipBase),
+        grid: { left: 78, right: 18, top: 16, bottom: 70 },
+        xAxis: {
+        type: "category",
+        data: corrKeys.map(k => k.name),
+        axisLabel: { color: AXIS, rotate: 18 },
+        splitArea: { show: true }
+        },
+        yAxis: {
+        type: "category",
+        data: corrKeys.map(k => k.name),
+        axisLabel: { color: AXIS },
+        splitArea: { show: true }
+        },
+        visualMap: {
+        min: -1,
+        max: 1,
+        calculable: true,
+        orient: "horizontal",
+        left: "center",
+        bottom: 8,
+        textStyle: { color: AXIS },
+        inRange: { color: ["#fb7299", "#f7e0e6", "#00a1d6"] }
+        },
+        series: [{
+        type: "heatmap",
+        data: corrData,
+        label: { show: true, color: "#2d1b2a", formatter: p => p.value[2] }
+        }]
+        });
+
+        // ③ 哑铃图
+        (function () {
+        const pure = window.pure || [];
+        const premium = window.premium || [];
+
+        const metrics = [
+        { name: "平均时长(分钟)", pure: 0, premium: 0 },
+        { name: "平均弹幕密度", pure: 0, premium: 0 },
+        { name: "平均互动率(%)", pure: 0, premium: 0 },
+        { name: "平均播放量(万)", pure: 0, premium: 0 }
+        ].reverse();
+
+        metrics[0].pure = +(pure.reduce((s, p) => s + (Number(p[6]) || 0), 0) / pure.length / 60).toFixed(1);
+        metrics[0].premium = +(premium.reduce((s, p) => s + (Number(p[6]) || 0), 0) / premium.length / 60).toFixed(1);
+        metrics[1].pure = +(pure.reduce((s, p) => s + (Number(p[5]) || 0), 0) / pure.length).toFixed(2);
+        metrics[1].premium = +(premium.reduce((s, p) => s + (Number(p[5]) || 0), 0) / premium.length).toFixed(2);
+        metrics[2].pure = +(pure.reduce((s, p) => s + p[2], 0) / pure.length).toFixed(2);
+        metrics[2].premium = +(premium.reduce((s, p) => s + p[2], 0) / premium.length).toFixed(2);
+        metrics[3].pure = +(pure.reduce((s, p) => s + p[0], 0) / pure.length / 10000).toFixed(2);
+        metrics[3].premium = +(premium.reduce((s, p) => s + p[0], 0) / premium.length / 10000).toFixed(2);
+
+        const normalized = metrics.map(m => {
+        const max = Math.max(m.pure, m.premium);
+        return { ...m, pureNorm: (m.pure / max) * 100, premiumNorm: (m.premium / max) * 100 };
+        });
+
+        const lineData = normalized.flatMap((m, i) => [[m.pureNorm, i], [m.premiumNorm, i]]);
+        const pureData = normalized.map((m, i) => ({ value: [m.pureNorm, i], real: m.pure }));
+        const premiumData = normalized.map((m, i) => ({ value: [m.premiumNorm, i], real: m.premium }));
+
+        mk("c_reserved", {
+        backgroundColor: "transparent",
+        title: {
+        text: "两类爆款核心特征差异",
+        left: "center",
+        top: 15,
+        textStyle: { color: "#2d1b2a", fontSize: 15, fontWeight: 600 }
+        },
+        tooltip: {
+        trigger: "item",
+        backgroundColor: "rgba(255,248,250,0.94)",
+        borderColor: "rgba(251,114,153,0.3)",
+        textStyle: { color: "#2d1b2a" },
+        formatter: params => {
+        const m = normalized[params.data[1]];
+        const unit = m.name.includes("播放量") ? "万" : m.name.includes("互动率") ? "%" : m.name.includes("时长") ? "分钟" : "";
+        return `${m.name}<br>
+        纯流量型：${params.seriesName === "纯流量型" ? params.data.real : m.pure} ${unit}<br>
+        流量+优质型：${params.seriesName === "流量+优质型" ? params.data.real : m.premium} ${unit}<br>
+        差异：${(Math.abs(m.premium - m.pure) / Math.min(m.pure, m.premium) * 100).toFixed(0)}%`;
+        }
+        },
+        legend: {
+        bottom: 15,
+        left: "center",
+        textStyle: { color: AXIS },
+        itemGap: 30
+        },
+        grid: { left: 120, right: 60, top: 60, bottom: 80 },
+        xAxis: {
+        type: "value",
+        name: "相对占比(%)",
+        max: 100,
+        nameTextStyle: { color: AXIS },
+        axisLabel: { color: AXIS },
+        splitLine: { lineStyle: { color: "rgba(0,0,0,0.06)" } }
+        },
+        yAxis: {
+        type: "category",
+        data: normalized.map(m => m.name),
+        axisLabel: { color: AXIS, fontSize: 12 },
+        axisLine: { lineStyle: { color: "#e0d6da" } }
+        },
+        series: [
+        {
+        type: "line",
+        name: "差异幅度",
+        data: lineData,
+        lineStyle: { color: "rgba(0,0,0,0.2)", width: 2 },
+        symbol: "none",
+        tooltip: { show: false }
+        },
+        {
+        name: "纯流量型",
+        type: "scatter",
+        symbolSize: 14,
+        data: pureData,
+        itemStyle: { color: "rgba(0,161,214,0.9)", borderColor: "#fff", borderWidth: 2 }
+        },
+        {
+        name: "流量+优质型",
+        type: "scatter",
+        symbolSize: 14,
+        data: premiumData,
+        itemStyle: { color: "rgba(251,114,153,0.9)", borderColor: "#fff", borderWidth: 2 }
+        }
+        ]
+        });
+        })();
+
+        // ============================================================
+        // 侧边栏导航交互
+        // ============================================================
+        const navLinks = document.querySelectorAll('.sidebar-nav a');
+        const pages = {
+        p1: document.getElementById('p1'),
+        p2: document.getElementById('p2'),
+        p3: document.getElementById('p3')
+        };
+
+        function switchPage(pageId) {
+        // 更新页面显示
+        Object.keys(pages).forEach(id => {
+        pages[id].classList.toggle('active', id === pageId);
+        });
+        // 更新导航高亮
+        navLinks.forEach(link => {
+        link.classList.toggle('active', link.dataset.page === pageId);
+        });
+        // 移动端关闭侧边栏
+        document.getElementById('sidebar').classList.remove('open');
+        document.getElementById('sidebarOverlay').classList.remove('active');
+        // 触发图表resize
+        setTimeout(() => Object.values(charts).forEach(c => c.resize()), 50);
+        }
+
+        navLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const page = link.dataset.page;
+        if (page) switchPage(page);
+        });
+        });
+
+        // 移动端菜单
+        document.getElementById('menuToggle').addEventListener('click', () => {
+        document.getElementById('sidebar').classList.toggle('open');
+        document.getElementById('sidebarOverlay').classList.toggle('active');
+        });
+        document.getElementById('sidebarOverlay').addEventListener('click', () => {
+        document.getElementById('sidebar').classList.remove('open');
+        document.getElementById('sidebarOverlay').classList.remove('active');
+        });
+
+        // 窗口resize
+        window.addEventListener('resize', () => Object.values(charts).forEach(c => c.resize()));
+
+        })();
+    </script>
+</body>
+</html>
